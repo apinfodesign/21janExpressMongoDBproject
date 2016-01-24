@@ -1,65 +1,156 @@
-var express = require('express');
-var path = require('path');
-var favicon = require('serve-favicon');
-var logger = require('morgan');
-var cookieParser = require('cookie-parser');
-var bodyParser = require('body-parser');
+var express 	= require('express');
+var fs 		    = require('fs');
+var router 		= express.Router();
+var path 		= require("path");
+var mongoose    = require('mongoose');
+var app         = express();
+var bodyParser  = require('body-parser');
+const methodOverride = require( 'method-override' );
 
-var routes = require('./routes/index');
-var users = require('./routes/users');
+app.use(bodyParser.json() );
 
-var app = express();
-
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'hbs');
-
-// uncomment after placing your favicon in /public
-//app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
-app.use(logger('dev'));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(cookieParser());
-app.use(require('node-sass-middleware')({
-  src: path.join(__dirname, 'public'),
-  dest: path.join(__dirname, 'public'),
-  indentedSyntax: true,
-  sourceMap: true
-}));
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.use('/', routes);
-app.use('/users', users);
-
-// catch 404 and forward to error handler
-app.use(function(req, res, next) {
-  var err = new Error('Not Found');
-  err.status = 404;
-  next(err);
-});
-
-// error handlers
-
-// development error handler
-// will print stacktrace
-if (app.get('env') === 'development') {
-  app.use(function(err, req, res, next) {
-    res.status(err.status || 500);
-    res.render('error', {
-      message: err.message,
-      error: err
-    });
-  });
+try {var uristring = require('./data/mongolabinfo.js').loginstring;
+}
+catch(err){
 }
 
-// production error handler
-// no stacktraces leaked to user
-app.use(function(err, req, res, next) {
-  res.status(err.status || 500);
-  res.render('error', {
-    message: err.message,
-    error: {}
-  });
+console.log(uristring, ': is uri');
+var db = mongoose.connect(uristring);
+
+var User = db.model('user', {
+        name                :  String,
+        hobby               :  String,
+        interests           :  {type: Array}
+        });
+
+
+//top level response
+app.get('/', function(req, res) {
+    res.send('hello world');
+});
+
+
+//GET - returns list of all objects
+//query parameters define page size and zero based page number
+
+app.get('/users', function(req,res,next){
+
+    var page = req.query.page;  //zero based
+    var pageSize = req.query.pageSize;
+
+    User.find()
+        .sort({created: 'descending'})
+        .limit(pageSize)
+        .skip(pageSize * page)
+        .exec(function (err, users) {
+            if (err) {
+                return next(err)
+            }
+            else {
+                res.status(201).json(users);
+            }
+        })
+});
+
+
+
+//GET/:id - returns the object specified by that id
+app.get('/users/:name', function(req,res,next){
+    res.type('json');
+    var name = req.params.name;
+    User.
+    findOne({
+        name: name
+    }).
+    select ('name').select('hobby').select('interests').
+    exec(function(err, user){
+        console.log('you got back : ', user);
+        if (err)
+            {return next(err)}
+            else{
+                res.status(201).json( user );
+             }
+        })
+});
+
+
+//POST create a new object (should return newly created object that has db id to client)
+
+app.post('/upload', function(req, res) {
+    console.log(req.params.body);
+    if (req.body.name !== null) {
+        console.log('req.body is: ', req.body);
+
+        var user = new User({
+            name        : req.body.name,
+            hobby       : req.body.name,
+            interests   : req.body.interests
+        });
+
+        user.save(function(err){
+            if (err){
+                next(err);
+            } else {
+                res.status(201).json( user );
+            }
+        });
+    }
+});
+
+
+//PUT/:id updates whole object with all provided data providers
+app.put('/update/:id', function (req, res) {
+    if ( req.params.id !== null ){
+        User.
+        findById( req.params.id, function(err,user) {
+            if (err) {res.send(err);}
+            else {
+                user.name        = req.body.name;
+                user.hobby       = req.body.name;
+                user.interests   = req.body.interests;
+
+                user.save(req.params.id, function(err){
+                    if (err) {
+                        res.send(err);
+                    }
+                    else {
+                        res.json(user);
+                    }
+                });
+            }
+        });
+    };
+});
+
+//PATCH does not work
+app.patch('/update/:id', function(req,res){
+    if (req.params.id !== null ){
+        User.
+        findByID (req.params.id , function (err, user){
+            if (err){res.send(err);
+            }
+            else {
+                res.json({message: " patch update completed "});
+            }
+        });
+    };
+});
+
+
+//DELETE/:id delete the object specified by that id
+app.delete('/delete/:id', function (req, res) {
+    if (req.params.id !== null){
+        console.log('OOO>>>', req.params.id);
+
+        User.
+        findByIdAndRemove( req.params.id, function(err,user) {
+            if (err){
+                res.send(err);
+            } else {
+                res.json({ message: 'Record has been deleted.' });
+            }
+        });
+    }
 });
 
 
