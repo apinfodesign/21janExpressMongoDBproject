@@ -20,7 +20,7 @@ var db = mongoose.connect(uristring);
 var User = db.model('user', {
         name                :  String,
         hobby               :  String,
-        interests           :  {type: Array}
+        interests           :  Array
         });
 
 
@@ -32,9 +32,7 @@ app.get('/', function(req, res) {
 
 //GET - returns list of all objects
 //query parameters define page size and zero based page number
-
 app.get('/users', function(req,res,next){
-
     var page = req.query.page;  //zero based
     var pageSize = req.query.pageSize;
 
@@ -51,7 +49,6 @@ app.get('/users', function(req,res,next){
             }
         })
 });
-
 
 
 //GET/:id - returns the object specified by that id
@@ -75,17 +72,18 @@ app.get('/users/:name', function(req,res,next){
 
 
 //POST create a new object (should return newly created object that has db id to client)
-
-app.post('/upload', function(req, res) {
+app.post('/users', function(req, res) {
     console.log(req.params.body);
     if (req.body.name !== null) {
-        console.log('req.body is: ', req.body);
+        console.log(' incoming to server req.body is: ', req.body);
 
-        var user = new User({
-            name        : req.body.name,
-            hobby       : req.body.name,
-            interests   : req.body.interests
-        });
+        var user = new User(req.body);
+
+         //   {
+         //   name        : req.body.name,
+         //   hobby       : req.body.hobby,
+         //   interests   : req.body.interests
+         //});
 
         user.save(function(err){
             if (err){
@@ -99,14 +97,14 @@ app.post('/upload', function(req, res) {
 
 
 //PUT/:id updates whole object with all provided data providers
-app.put('/update/:id', function (req, res) {
+app.put('/users/:id', function (req, res) {
     if ( req.params.id !== null ){
         User.
         findById( req.params.id, function(err,user) {
             if (err) {res.send(err);}
             else {
                 user.name        = req.body.name;
-                user.hobby       = req.body.name;
+                user.hobby       = req.body.hobby;
                 user.interests   = req.body.interests;
 
                 user.save(req.params.id, function(err){
@@ -123,7 +121,7 @@ app.put('/update/:id', function (req, res) {
 });
 
 //PATCH does not work
-app.patch('/update/:id', function(req,res){
+app.patch('/users/:id', function(req,res){
     if (req.params.id !== null ){
         User.
         findByID (req.params.id , function (err, user){
@@ -138,17 +136,20 @@ app.patch('/update/:id', function(req,res){
 
 
 //DELETE/:id delete the object specified by that id
-app.delete('/delete/:id', function (req, res) {
+app.delete('/users/:id', function (req, res) {
     if (req.params.id !== null){
-        console.log('OOO>>>', req.params.id);
-
+        //console.log('OOO>>>', req.params.id);
         User.
         findByIdAndRemove( req.params.id, function(err,user) {
             if (err){
                 res.send(err);
             } else {
-                res.json({ message: 'Record has been deleted.' });
-            }
+                res.json({
+                    message: 'Record has been deleted.',
+                    name:  user.name,
+                    id : user._id
+                });
+             }
         });
     }
 });

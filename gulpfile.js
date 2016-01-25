@@ -42,7 +42,8 @@ gulp.task('lint', () => {
 
 
 gulp.task('watch-mocha', () => {
-    gulp.watch(['./*.js', 'test/**','!package.json'], ['lint','mocha']);
+    gulp.watch(['./*.js', 'test/**','!package.json', '!./data/*'],
+    ['lint','mocha']);
 });
 
 
